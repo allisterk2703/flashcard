@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@source "./**/*.{ts,tsx}";
+
+/* ── Design tokens ──────────────────────────────────────────────────── */
+
+:root {
+  --app-primary: hsl(0 0% 10%);
+  --app-secondary: hsl(0 0% 40%);
+  --app-tertiary: hsl(0 0% 55%);
+  --app-strong: hsl(0 0% 0%);
+  --app-accent: hsl(211 100% 50%);
+  --app-accent-foreground: hsl(0 0% 100%);
+  --app-control: hsl(0 0% 0% / 0.12);
+  --app-control-subtle: hsl(0 0% 0% / 0.06);
+  --app-glass: hsl(0 0% 100% / 0.55);
+  --app-well: hsl(0 0% 0% / 0.08);
+  --app-separator: hsl(0 0% 0% / 0.12);
+  --app-ring: hsl(211 100% 50% / 0.6);
+  --app-support-green: hsl(140 65% 38%);
+  --app-support-orange: hsl(28 90% 48%);
+  --app-support-red: hsl(0 75% 50%);
+  --app-popover: hsl(0 0% 100%);
+  --app-dialog: hsl(0 0% 98%);
+}
+
+.dark {
+  --app-primary: hsl(0 0% 95%);
+  --app-secondary: hsl(0 0% 65%);
+  --app-tertiary: hsl(0 0% 50%);
+  --app-strong: hsl(0 0% 100%);
+  --app-accent: hsl(211 100% 55%);
+  --app-accent-foreground: hsl(0 0% 100%);
+  --app-control: hsl(0 0% 100% / 0.16);
+  --app-control-subtle: hsl(0 0% 100% / 0.08);
+  --app-glass: hsl(0 0% 100% / 0.1);
+  --app-well: hsl(0 0% 100% / 0.1);
+  --app-separator: hsl(0 0% 100% / 0.14);
+  --app-ring: hsl(211 100% 60% / 0.7);
+  --app-support-green: hsl(140 60% 55%);
+  --app-support-orange: hsl(30 95% 60%);
+  --app-support-red: hsl(0 85% 65%);
+  --app-popover: hsl(0 0% 16%);
+  --app-dialog: hsl(0 0% 14%);
+}
+
+@theme inline {
+  --color-primary: var(--app-primary);
+  --color-secondary: var(--app-secondary);
+  --color-tertiary: var(--app-tertiary);
+  --color-strong: var(--app-strong);
+  --color-accent: var(--app-accent);
+  --color-accent-foreground: var(--app-accent-foreground);
+  --color-control: var(--app-control);
+  --color-control-subtle: var(--app-control-subtle);
+  --color-glass: var(--app-glass);
+  --color-well: var(--app-well);
+  --color-separator: var(--app-separator);
+  --color-ring: var(--app-ring);
+  --color-support-green: var(--app-support-green);
+  --color-support-orange: var(--app-support-orange);
+  --color-support-red: var(--app-support-red);
+  --color-popover: var(--app-popover);
+  --color-dialog: var(--app-dialog);
+
+  --radius-card: 1rem;
+  --radius-pill: 9999px;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────── */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  color: var(--app-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+input,
+textarea {
+  user-select: text;
+}
+
+/* ── Utilities ──────────────────────────────────────────────────────── */
+
+@utility drag-region {
+  -webkit-app-region: drag;
+}
+
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}
+
+@utility dimmable {
+  /* Kept for parity with copied class strings; no visual effect. */
+  opacity: 1;
+}
+
+button,
+input,
+textarea,
+select,
+a,
+[role="menuitem"] {
+  -webkit-app-region: no-drag;
+}
