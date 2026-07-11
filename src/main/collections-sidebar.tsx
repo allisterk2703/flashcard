@@ -135,7 +135,7 @@ export function CollectionsSidebar() {
           }
         }}
         title="Nouvelle collection"
-        description="Donnez un nom à votre collection de cartes."
+        description="Donnez un nom à votre collection."
         confirmLabel="Créer"
         confirmDisabled={!name.trim()}
         onConfirm={submitCreate}
@@ -146,7 +146,7 @@ export function CollectionsSidebar() {
             <Input
               autoFocus
               value={name}
-              placeholder="Ex. Vocabulaire espagnol"
+              placeholder="Saisissez le nom de la collection"
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && name.trim()) {

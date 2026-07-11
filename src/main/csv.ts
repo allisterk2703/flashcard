@@ -88,15 +88,11 @@ function parseRows(text: string, delimiter: string): string[][] {
 }
 
 /**
- * Parse CSV text into flashcards. Rows missing a back are skipped.
- * A leading header row like "front,back" / "question,réponse" is detected
- * and ignored.
+ * Convert raw rows into flashcards. The first two columns map to front / back;
+ * rows missing either side are skipped. A leading header row like "front,back" /
+ * "question,réponse" is detected and ignored.
  */
-export function parseCsvCards(rawText: string): ParsedCard[] {
-  const text = rawText.replace(/^\uFEFF/, ""); // strip a leading UTF-8 BOM
-  const delimiter = detectDelimiter(text);
-  const rows = parseRows(text, delimiter);
-
+export function rowsToCards(rows: string[][]): ParsedCard[] {
   const cards: ParsedCard[] = [];
   rows.forEach((row, index) => {
     const front = (row[0] ?? "").trim();
@@ -115,4 +111,11 @@ export function parseCsvCards(rawText: string): ParsedCard[] {
   });
 
   return cards;
+}
+
+/** Parse CSV text into flashcards. */
+export function parseCsvCards(rawText: string): ParsedCard[] {
+  const text = rawText.replace(/^\uFEFF/, ""); // strip a leading UTF-8 BOM
+  const delimiter = detectDelimiter(text);
+  return rowsToCards(parseRows(text, delimiter));
 }

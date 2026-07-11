@@ -138,12 +138,49 @@ export function updateCard(collectionId: string, cardId: string, front: string, 
   );
 }
 
+// Recently deleted cards, most recent last, so deletions can be undone
+// (Cmd+Z or the toast's "Annuler" action).
+interface DeletedCardEntry {
+  collectionId: string;
+  card: Flashcard;
+  index: number;
+}
+const deletedStack: DeletedCardEntry[] = [];
+
 export function deleteCard(collectionId: string, cardId: string): void {
   mutate((collections) =>
-    collections.map((c) =>
-      c.id === collectionId ? { ...c, cards: c.cards.filter((card) => card.id !== cardId) } : c,
-    ),
+    collections.map((c) => {
+      if (c.id !== collectionId) return c;
+      const index = c.cards.findIndex((card) => card.id === cardId);
+      if (index === -1) return c;
+      deletedStack.push({ collectionId, card: c.cards[index], index });
+      return { ...c, cards: c.cards.filter((card) => card.id !== cardId) };
+    }),
   );
+}
+
+/**
+ * Restore a deleted card at its original position. With no argument, restores
+ * the most recent deletion; with a cardId, restores that specific card.
+ * Returns the restored card, or null if there is nothing to restore.
+ */
+export function undoDeleteCard(cardId?: string): Flashcard | null {
+  const at = cardId
+    ? deletedStack.findIndex((e) => e.card.id === cardId)
+    : deletedStack.length - 1;
+  if (at < 0) return null;
+  const [entry] = deletedStack.splice(at, 1);
+  let restored = false;
+  mutate((collections) =>
+    collections.map((c) => {
+      if (c.id !== entry.collectionId) return c;
+      restored = true;
+      const cards = [...c.cards];
+      cards.splice(Math.min(entry.index, cards.length), 0, entry.card);
+      return { ...c, cards };
+    }),
+  );
+  return restored ? entry.card : null;
 }
 
 /** Bulk-append parsed cards (from CSV import). Returns the number added. */
