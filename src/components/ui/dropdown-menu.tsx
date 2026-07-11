@@ -1,12 +1,15 @@
 import * as React from "react";
 import { DropdownMenu as DropdownMenuPrimitive, Popover as PopoverPrimitive } from "radix-ui";
-import { Pencil, Trash2, RotateCcw, type LucideIcon } from "lucide-react";
+import { Pencil, Trash2, RotateCcw, FileDown, FileSpreadsheet, Check, type LucideIcon } from "lucide-react";
 import { cn } from "./utils";
 
 const ITEM_ICONS: Record<string, LucideIcon> = {
   pencil: Pencil,
   trash: Trash2,
   "arrow.counterclockwise": RotateCcw,
+  "arrow.down.doc": FileDown,
+  tablecells: FileSpreadsheet,
+  checkmark: Check,
 };
 
 const contentClass =

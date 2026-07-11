@@ -23,20 +23,39 @@ import {
   ToolbarSearchButton,
   toast,
 } from "../components/ui";
-import { MoreHorizontal, Plus, Upload, Play, Trash2, CheckCircle2 } from "lucide-react";
+import {
+  MoreHorizontal,
+  Plus,
+  Upload,
+  Play,
+  Trash2,
+  CheckCircle2,
+  LayoutList,
+  Table2,
+  ArrowUpDown,
+} from "lucide-react";
 import {
   useCollection,
   addCard,
   addCards,
   updateCard,
-  deleteCard,
   renameCollection,
   deleteCollection,
   resetCollection,
+  undoDeleteCard,
   type Flashcard,
 } from "./store";
-import { parseCsvCards } from "./csv";
+import { deleteCardWithUndo } from "./card-actions";
+import { parseImportFile } from "./import";
+import { exportCollectionCsv, exportCollectionXlsx } from "./export";
+import { CardTable } from "./card-table";
 import { EmojiPicker } from "../components/emoji-picker";
+
+const VIEW_MODE_KEY = "flashcards.collectionViewMode";
+type ViewMode = "list" | "table";
+
+const SORT_MODE_KEY = "flashcards.collectionSortMode";
+type SortMode = "insertion" | "alpha";
 
 export function CollectionView() {
   const { collectionId } = useParams({ from: "/collections/$collectionId" });
@@ -55,6 +74,39 @@ export function CollectionView() {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [resetOpen, setResetOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
+  const [viewMode, setViewMode] = React.useState<ViewMode>(() =>
+    localStorage.getItem(VIEW_MODE_KEY) === "table" ? "table" : "list",
+  );
+
+  const changeViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_KEY, mode);
+  };
+
+  const [sortMode, setSortMode] = React.useState<SortMode>(() =>
+    localStorage.getItem(SORT_MODE_KEY) === "alpha" ? "alpha" : "insertion",
+  );
+
+  const changeSortMode = (mode: SortMode) => {
+    setSortMode(mode);
+    localStorage.setItem(SORT_MODE_KEY, mode);
+  };
+
+  // Cmd+Z restores the last deleted card. Skipped while typing in a text
+  // field, where Cmd+Z must keep its native text-undo behavior.
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.key.toLowerCase() !== "z") return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      if (undoDeleteCard()) {
+        event.preventDefault();
+        toast.success("Carte rétablie");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   if (!collection) {
     return (
@@ -94,8 +146,7 @@ export function CollectionView() {
     event.target.value = "";
     if (!file) return;
     try {
-      const text = await file.text();
-      const parsed = parseCsvCards(text);
+      const parsed = await parseImportFile(file);
       if (parsed.length === 0) {
         toast.error("Aucune carte trouvée", {
           description: "Le fichier doit contenir deux colonnes : recto, verso.",
@@ -120,6 +171,14 @@ export function CollectionView() {
       )
     : collection.cards;
 
+  // Cards are stored in insertion order, so "insertion" is the array as-is.
+  const sortedCards =
+    sortMode === "alpha"
+      ? [...filteredCards].sort((a, b) =>
+          a.front.localeCompare(b.front, "fr", { sensitivity: "base" }),
+        )
+      : filteredCards;
+
   return (
     <ScrollArea
       className="h-full"
@@ -132,9 +191,49 @@ export function CollectionView() {
               </ToolbarTitle>
             </ToolbarContent>
             <ToolbarActions>
+              <div className="flex h-9 items-center gap-0.5 rounded-pill bg-glass p-0.5">
+                <Button
+                  iconOnly
+                  variant={viewMode === "list" ? "default" : "transparent"}
+                  aria-label="Affichage en liste"
+                  onClick={() => changeViewMode("list")}
+                >
+                  <LayoutList className="size-4" />
+                </Button>
+                <Button
+                  iconOnly
+                  variant={viewMode === "table" ? "default" : "transparent"}
+                  aria-label="Affichage en tableau"
+                  onClick={() => changeViewMode("table")}
+                >
+                  <Table2 className="size-4" />
+                </Button>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label="Trier les cartes"
+                  className="inline-flex shrink-0 items-center justify-center whitespace-nowrap text-strong overflow-hidden focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring hover:cursor-default disabled:pointer-events-none disabled:opacity-50 bg-glass dimmable hover:bg-control-subtle text-primary border border-transparent active:bg-control focus:outline-none data-[state='open']:bg-control transition-colors duration-200 gap-1.5 [&_svg:not([class*='size-'])]:size-5 p-0 rounded-pill w-9 h-9"
+                >
+                  <ArrowUpDown className="size-4.5" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    icon={sortMode === "insertion" ? "checkmark" : undefined}
+                    onSelect={() => changeSortMode("insertion")}
+                  >
+                    Date d'ajout
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    icon={sortMode === "alpha" ? "checkmark" : undefined}
+                    onSelect={() => changeSortMode("alpha")}
+                  >
+                    Ordre alphabétique
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="glass" size="large" onClick={handleImportClick}>
                 <Upload className="size-4.5" />
-                Importer CSV
+                Importer
               </Button>
               <Button variant="glass" size="large" onClick={openAddCard}>
                 <Plus className="size-4.5" />
@@ -180,6 +279,21 @@ export function CollectionView() {
                     Réinitialiser la progression
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    icon="arrow.down.doc"
+                    disabled={cardCount === 0}
+                    onSelect={() => exportCollectionCsv(collection)}
+                  >
+                    Exporter en CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    icon="tablecells"
+                    disabled={cardCount === 0}
+                    onSelect={() => exportCollectionXlsx(collection)}
+                  >
+                    Exporter en Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem icon="trash" color="red" onSelect={() => setDeleteOpen(true)}>
                     Supprimer la collection
                   </DropdownMenuItem>
@@ -198,15 +312,24 @@ export function CollectionView() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".csv,.txt,text/csv"
+        accept=".csv,.txt,.tsv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
         className="hidden"
         onChange={handleFileChange}
       />
 
-      {cardCount === 0 ? (
+      {viewMode === "table" ? (
+        filteredCards.length === 0 && query ? (
+          <EmptyState
+            title="Aucun résultat"
+            description={`Aucune carte ne correspond à « ${search.trim()} ».`}
+          />
+        ) : (
+          <CardTable collectionId={collection.id} cards={sortedCards} />
+        )
+      ) : cardCount === 0 ? (
         <EmptyState
           title="Aucune carte"
-          description="Ajoutez des cartes une par une ou importez-les depuis un fichier CSV (recto, verso)."
+          description="Ajoutez des cartes une par une ou importez-les depuis un fichier CSV ou Excel (recto, verso)."
           actions={
             <>
               <Button variant="accent" onClick={openAddCard}>
@@ -215,7 +338,7 @@ export function CollectionView() {
               </Button>
               <Button onClick={handleImportClick}>
                 <Upload className="size-4.5" />
-                Importer CSV
+                Importer
               </Button>
             </>
           }
@@ -227,11 +350,11 @@ export function CollectionView() {
         />
       ) : (
         <List.Root
-          items={filteredCards}
+          items={sortedCards}
           getItemKey={(card) => card.id}
           className="px-3 py-2"
         >
-          {filteredCards.map((card) => (
+          {sortedCards.map((card) => (
             <List.Item key={card.id} item={card} onClick={() => openEditCard(card)}>
               <List.ItemContent>
                 <List.ItemTitle>{card.front}</List.ItemTitle>
@@ -246,7 +369,10 @@ export function CollectionView() {
                   variant="transparent"
                   size="small"
                   aria-label="Supprimer la carte"
-                  onClick={() => deleteCard(collection.id, card.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    deleteCardWithUndo(collection.id, card.id);
+                  }}
                 >
                   <Trash2 className="size-4 text-secondary" />
                 </Button>
@@ -265,8 +391,17 @@ export function CollectionView() {
         confirmDisabled={!front.trim() || !back.trim()}
         onConfirm={submitCard}
       >
-        <div className="flex flex-col gap-3">
-          <Field label="Recto" description="La question ou le terme." orientation="vertical" className="p-0">
+        <div
+          className="flex flex-col gap-3"
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && front.trim() && back.trim()) {
+              event.preventDefault();
+              submitCard();
+              setCardDialogOpen(false);
+            }
+          }}
+        >
+          <Field label="Recto" orientation="vertical" className="p-0">
             <Textarea
               autoFocus
               value={front}
@@ -274,7 +409,7 @@ export function CollectionView() {
               onChange={(e) => setFront(e.target.value)}
             />
           </Field>
-          <Field label="Verso" description="La réponse." orientation="vertical" className="p-0">
+          <Field label="Verso" orientation="vertical" className="p-0">
             <Textarea value={back} placeholder="Ex. Hello" onChange={(e) => setBack(e.target.value)} />
           </Field>
         </div>
