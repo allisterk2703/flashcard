@@ -38,7 +38,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "electron": "^38.0.0",
     "electron-builder": "^26.0.0",
-    "esbuild": "^0.27.4",
+    "esbuild": "^0.28.1",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.5.3",
     "vite": "^8.0.2"
